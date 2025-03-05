@@ -73,4 +73,7 @@ Best Regards,
 **Ravi Sharma**  
 AI Research Lead  
 TeraSense Pvt. Ltd."""
-print(detect_spam(not_spam))
+
+result=detect_spam(not_spam)
+print(result)
+

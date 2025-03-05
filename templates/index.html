@@ -136,7 +136,7 @@
                 <input type="text" placeholder="Name" class="w-full p-3 mb-4 rounded-lg border">
                 <input type="email" placeholder="Email" class="w-full p-3 mb-4 rounded-lg border">
                 <textarea rows="4" placeholder="Your Message" class="w-full p-3 mb-4 rounded-lg border"></textarea>
-                <button type="submit" class="gradient-bg text-white px-8 py-3 rounded-full font-bold hover:opacity-90 transition duration-300">
+                <button type="submit" onclick="display()" class="gradient-bg text-white px-8 py-3 rounded-full font-bold hover:opacity-90 transition duration-300">
                     Send Message
                 </button>
             </form>
@@ -158,17 +158,21 @@
             const resultTitle = document.getElementById('resultTitle');
             const resultDescription = document.getElementById('resultDescription');
 
+            let response=fetch("http://127.0.0.1:5501/index.html/get_res")
+            let data=response.json();
             // Simulated AI Analysis (replace with actual AI logic)
-            if (emailContent.toLowerCase().includes('urgent') || emailContent.toLowerCase().includes('click here')) {
-                resultTitle.textContent = 'High Risk Phishing Detected!';
-                resultTitle.classList.add('text-red-500');
-                resultDescription.textContent = 'This email contains multiple phishing indicators. Do not click any links or provide personal information.';
-            } else {
-                resultTitle.textContent = 'Email Appears Safe';
-                resultTitle.classList.add('text-green-500');
-                resultDescription.textContent = 'No immediate phishing threats detected. However, always remain cautious.';
+            function display(){
+                
+                if (data>0.7) {
+                    resultTitle.textContent = 'High Risk Phishing Detected!';
+                    resultTitle.classList.add('text-red-500');
+                    resultDescription.textContent = 'This email contains multiple phishing indicators. Do not click any links or provide personal information.';
+                } else {
+                    resultTitle.textContent = 'Email Appears Safe';
+                    resultTitle.classList.add('text-green-500');
+                    resultDescription.textContent = 'No immediate phishing threats detected. However, always remain cautious.';
+                }
             }
-
             scanResult.classList.remove('hidden');
         });
     </script>
