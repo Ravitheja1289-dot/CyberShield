@@ -127,6 +127,22 @@
             </div>
         </div>
     </section>
+    <!-- website link scan -->
+    <section id="website-check" class="py-16 bg-white text-center">
+        <div class="container mx-auto px-4">
+            <h3 class="text-3xl font-bold mb-6">Check a Website for Threats</h3>
+            <form id="websiteCheckForm" class="max-w-lg mx-auto">
+                <input type="url" id="websiteUrl" class="w-full p-3 mb-4 rounded-lg border" placeholder="Enter website URL..." required>
+                <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition duration-300">
+                    Check Website
+                </button>
+            </form>
+            <div id="websiteCheckResult" class="mt-8 hidden">
+                <h4 id="websiteResultTitle" class="text-2xl font-bold"></h4>
+                <p id="websiteResultDescription" class="mt-4"></p>
+            </div>
+        </div>
+    </section>
 
     <!-- Contact Section -->
     <section id="contact" class="py-16 bg-white">
@@ -151,30 +167,72 @@
     </footer>
 
     <script>
-        document.getElementById('emailScanForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const emailContent = document.getElementById('emailContent').value;
-            const scanResult = document.getElementById('scanResult');
-            const resultTitle = document.getElementById('resultTitle');
-            const resultDescription = document.getElementById('resultDescription');
+        // Email detection 
 
-            let response=fetch("http://127.0.0.1:5501/index.html/get_res")
-            let data=response.json();
-            // Simulated AI Analysis (replace with actual AI logic)
-            function display(){
-                
-                if (data>0.7) {
-                    resultTitle.textContent = 'High Risk Phishing Detected!';
-                    resultTitle.classList.add('text-red-500');
-                    resultDescription.textContent = 'This email contains multiple phishing indicators. Do not click any links or provide personal information.';
-                } else {
-                    resultTitle.textContent = 'Email Appears Safe';
-                    resultTitle.classList.add('text-green-500');
-                    resultDescription.textContent = 'No immediate phishing threats detected. However, always remain cautious.';
-                }
-            }
-            scanResult.classList.remove('hidden');
+document.getElementById("emailScanForm").addEventListener("submit", async function(event) {
+    event.preventDefault(); // Prevent form from refreshing page
+
+    let emailText = document.getElementById("emailContent").value;
+    let response = await fetch("/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_text: emailText })
+    });
+
+    let result = await response.json();
+
+    // Display result
+    let scanResultDiv = document.getElementById("scanResult");
+    let resultTitle = document.getElementById("resultTitle");
+    let resultDescription = document.getElementById("resultDescription");
+
+    if (result.result === "Spam Email!") {
+        resultTitle.innerText = "⚠️ Suspicious Email Detected!";
+        resultDescription.innerText = "This email appears to be spam or phishing. Be cautious before opening links or downloading attachments.";
+        scanResultDiv.classList.remove("hidden");
+        scanResultDiv.classList.add("text-red-500");
+    } else {
+        resultTitle.innerText = "✅ Safe Email";
+        resultDescription.innerText = "This email does not appear to be spam. However, always be cautious and verify the sender.";
+        scanResultDiv.classList.remove("hidden");
+        scanResultDiv.classList.add("text-green-500");
+    }
+});
+
+// website detection
+document.getElementById("websiteCheckForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const urlInput = document.getElementById("websiteUrl").value;
+    const resultContainer = document.getElementById("websiteCheckResult");
+    const resultTitle = document.getElementById("websiteResultTitle");
+    const resultDescription = document.getElementById("websiteResultDescription");
+
+    resultTitle.innerText = "Scanning...";
+    resultDescription.innerText = "";
+    resultContainer.classList.remove("hidden");
+
+    try {
+        const response = await fetch("/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: urlInput })
         });
+
+        const data = await response.json();
+
+        if (data.error) {
+            resultTitle.innerText = "Error!";
+            resultDescription.innerText = data.error;
+        } else {
+            resultTitle.innerText = "Scan Completed!";
+            resultDescription.innerText = `Scan ID: ${data.scan_id}\n\nReport: ${JSON.stringify(data.report, null, 2)}`;
+        }
+    } catch (error) {
+        resultTitle.innerText = "Error!";
+        resultDescription.innerText = "Failed to scan the website.";
+    }
+});
     </script>
 </body>
 </html>
