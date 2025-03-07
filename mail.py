@@ -1,79 +1,89 @@
+from flask import Flask, request, jsonify, render_template
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report, roc_auc_score
-import warnings
+import requests
 
-warnings.filterwarnings('ignore')
+app = Flask(__name__)
 
+# Email detection
+# Load and train model
 df = pd.read_csv("https://raw.githubusercontent.com/Apaulgithub/oibsip_taskno4/main/spam.csv", encoding='ISO-8859-1')
 df.rename(columns={"v1": "Category", "v2": "Message"}, inplace=True)
-df.drop(columns={'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4'}, inplace=True)
+df.drop(columns=['Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4'], inplace=True)
 df['Spam'] = df['Category'].apply(lambda x: 1 if x == 'spam' else 0)
 
 X_train, X_test, y_train, y_test = train_test_split(df.Message, df.Spam, test_size=0.25)
 
-def evaluate_model(model, X_train, X_test, y_train, y_test):
-    model.fit(X_train, y_train)
-    y_pred_train = model.predict(X_train)
-    y_pred_test = model.predict(X_test)
-
-    print("\nTrain ROC AUC:", roc_auc_score(y_train, y_pred_train))
-    print("Test ROC AUC:", roc_auc_score(y_test, y_pred_test))
-    print("\nTrain Classification Report:")
-    print(classification_report(y_train, y_pred_train))
-    print("\nTest Classification Report:")
-    print(classification_report(y_test, y_pred_test))
-    
 clf = Pipeline([
     ('vectorizer', CountVectorizer()),  
     ('nb', MultinomialNB())  
 ])
-
-evaluate_model(clf, X_train, X_test, y_train, y_test)
+clf.fit(X_train, y_train)
 
 def detect_spam(email_text):
-    return "Spam Email!" if clf.predict([email_text])[0] else "Not spam Email!"
+    return "Spam Email!" if clf.predict([email_text])[0] else "Not Spam Email!"
 
-sample_email = """Subject: 🎉 Congratulations! You've Won a Free iPhone 15! 🎉
+# website detection
+API_KEY = "402132554c33a11133e7ea1a8bbceb74a5eadb87087dc89eaab12b18f339027e"
 
-Dear User,
+# Function to scan a URL
+def scan_url(url):
+    vt_url = "https://www.virustotal.com/api/v3/urls"
+    headers = {"x-apikey": API_KEY}
+    data = {"url": url}
 
-You have been selected as the lucky winner of our exclusive iPhone 15 giveaway! 🎁 To claim your brand-new iPhone, all you have to do is confirm your details by clicking the link below:
+    response = requests.post(vt_url, headers=headers, data=data)
 
-👉 Claim Your Prize Now 👈
+    if response.status_code == 200:
+        scan_id = response.json()["data"]["id"]
+        return scan_id
+    else:
+        return None
 
-Hurry! This offer expires in 24 hours. If you do not claim your prize, it will be given to the next lucky winner.
+# Function to get scan results
+def get_scan_report(scan_id):
+    vt_url = f"https://www.virustotal.com/api/v3/analyses/{scan_id}"
+    headers = {"x-apikey": API_KEY}
 
-Best Regards,
-The Giveaway Team
-support@freeiphonepromo.com
+    response = requests.get(vt_url, headers=headers)
 
-"""
-not_spam="""**Subject:** 📅 Reminder: Upcoming Team Meeting on March 10  
+    if response.status_code == 200:
+        result = response.json()
+        stats = result["data"]["attributes"]["stats"]
+        return stats
+    else:
+        return None
 
-**Dear Alex,**  
 
-I hope you're doing well. This is a reminder about our upcoming **team meeting** scheduled for **March 10 at 3:00 PM (IST)**.  
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-### **Agenda:**  
-- Progress update on the **TeraSense AI Model**  
-- Review of recent **satellite data analysis**  
-- Discussion on **next steps for disaster prediction accuracy**  
-- Addressing any roadblocks  
-- Open floor for questions and feedback  
+@app.route('/detect', methods=['POST'])
+def detect():
+    data = request.json
+    email_text = data.get('email_text', '')
+    result = detect_spam(email_text)
+    return jsonify({"result": result})
 
-**Meeting Link:** [https://meet.example.com/terasense-meeting](#)  
+# Flask API Route
+@app.route("/scan", methods=["POST"])
+def scan():
+    data = request.json
+    url = data.get("url")
 
-Please make sure to join on time. Let me know if you have any conflicts or need any adjustments. Looking forward to catching up with everyone!  
+    if not url:
+        return jsonify({"error": "No URL provided"}), 400
 
-Best Regards,  
-**Ravi Sharma**  
-AI Research Lead  
-TeraSense Pvt. Ltd."""
+    scan_id = scan_url(url)
+    if scan_id:
+        report = get_scan_report(scan_id)
+        return jsonify({"scan_id": scan_id, "report": report})
+    else:
+        return jsonify({"error": "Failed to scan URL"}), 500
 
-result=detect_spam(not_spam)
-print(result)
-
+if __name__ == '__main__':
+    app.run(debug=True)
