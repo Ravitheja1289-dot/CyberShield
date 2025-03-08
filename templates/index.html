@@ -127,6 +127,25 @@
             </div>
         </div>
     </section>
+    <!-- website link scan -->
+    <section id="website-check" class="py-16 bg-white text-center">
+        <div class="container mx-auto px-4">
+            <h3 class="text-3xl font-bold mb-6">Check a Website for Threats</h3>
+            <form id="websiteCheckForm" class="max-w-lg mx-auto">
+                <input type="url" id="websiteUrl" class="w-full p-3 mb-4 rounded-lg border shadow-sm" placeholder="Enter website URL..." required>
+                <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition duration-300">
+                    Check Website
+                </button>
+            </form>
+            <div id="websiteCheckResult" class="mt-8 hidden">
+                <div class="bg-gray-100 shadow-lg rounded-lg p-6 max-w-lg mx-auto">
+                    <h4 id="websiteResultTitle" class="text-2xl font-bold text-green-600 mb-4"></h4>
+                    <p id="scanId" class="text-gray-700 font-semibold"></p>
+                    <div id="websiteResultDescription" class="mt-4 text-left bg-white p-4 rounded-lg border"></div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- Contact Section -->
     <section id="contact" class="py-16 bg-white">
@@ -151,30 +170,95 @@
     </footer>
 
     <script>
-        document.getElementById('emailScanForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const emailContent = document.getElementById('emailContent').value;
-            const scanResult = document.getElementById('scanResult');
-            const resultTitle = document.getElementById('resultTitle');
-            const resultDescription = document.getElementById('resultDescription');
+        // Email detection 
 
-            let response=fetch("http://127.0.0.1:5501/index.html/get_res")
-            let data=response.json();
-            // Simulated AI Analysis (replace with actual AI logic)
-            function display(){
-                
-                if (data>0.7) {
-                    resultTitle.textContent = 'High Risk Phishing Detected!';
-                    resultTitle.classList.add('text-red-500');
-                    resultDescription.textContent = 'This email contains multiple phishing indicators. Do not click any links or provide personal information.';
-                } else {
-                    resultTitle.textContent = 'Email Appears Safe';
-                    resultTitle.classList.add('text-green-500');
-                    resultDescription.textContent = 'No immediate phishing threats detected. However, always remain cautious.';
+document.getElementById("emailScanForm").addEventListener("submit", async function(event) {
+    event.preventDefault(); // Prevent form from refreshing page
+
+    let emailText = document.getElementById("emailContent").value;
+    let response = await fetch("/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_text: emailText })
+    });
+
+    let result = await response.json();
+
+    // Display result
+    let scanResultDiv = document.getElementById("scanResult");
+    let resultTitle = document.getElementById("resultTitle");
+    let resultDescription = document.getElementById("resultDescription");
+
+    if (result.result === "Spam Email!") {
+        resultTitle.innerText = "⚠️ Suspicious Email Detected!";
+        resultDescription.innerText = "This email appears to be spam or phishing. Be cautious before opening links or downloading attachments.";
+        scanResultDiv.classList.remove("hidden");
+        scanResultDiv.classList.add("text-red-500");
+    } else {
+        resultTitle.innerText = "✅ Safe Email";
+        resultDescription.innerText = "This email does not appear to be spam. However, always be cautious and verify the sender.";
+        scanResultDiv.classList.remove("hidden");
+        scanResultDiv.classList.add("text-green-500");
+    }
+});
+
+// website detection
+document.getElementById("websiteCheckForm").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const urlInput = document.getElementById("websiteUrl").value;
+        const resultContainer = document.getElementById("websiteCheckResult");
+        const resultTitle = document.getElementById("websiteResultTitle");
+        const scanIdText = document.getElementById("scanId");
+        const resultDescription = document.getElementById("websiteResultDescription");
+
+        resultTitle.innerText = "Scanning...";
+        scanIdText.innerText = "";
+        resultDescription.innerHTML = "";
+        resultContainer.classList.remove("hidden");
+
+        try {
+            const response = await fetch("/scan", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: urlInput })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                resultTitle.innerText = "Error!";
+                scanIdText.innerText = "";
+                resultDescription.innerHTML = `<p class="text-red-600 font-semibold">${data.error}</p>`;
+            } else {
+                resultTitle.innerText = "Scan Completed!";
+                scanIdText.innerText = `Scan ID: ${data.scan_id}`;
+
+                let reportHtml = `<table class="w-full text-left border-collapse mt-4">
+                                    <thead>
+                                        <tr class="bg-gray-200">
+                                            <th class="p-2 border">Threat Type</th>
+                                            <th class="p-2 border">Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+
+                for (const [key, value] of Object.entries(data.report)) {
+                    reportHtml += `<tr>
+                                    <td class="p-2 border capitalize">${key}</td>
+                                    <td class="p-2 border font-semibold">${value}</td>
+                                   </tr>`;
                 }
+
+                reportHtml += `</tbody></table>`;
+                resultDescription.innerHTML = reportHtml;
             }
-            scanResult.classList.remove('hidden');
-        });
+        } catch (error) {
+            resultTitle.innerText = "Error!";
+            scanIdText.innerText = "";
+            resultDescription.innerHTML = `<p class="text-red-600 font-semibold">Failed to scan the website.</p>`;
+        }
+    });
     </script>
 </body>
 </html>
